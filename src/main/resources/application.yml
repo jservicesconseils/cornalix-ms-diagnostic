@@ -1,0 +1,47 @@
+server:
+  port: 8082   # 8080 = core-api, 8081 = cornalix-ms-identity (voir leurs application.yml)
+
+spring:
+  application:
+    name: cornalix-ms-diagnostic
+
+  # Base de donnees H2 en memoire : elle existe seulement pendant que
+  # l'application tourne, et repart a zero a chaque redemarrage. Ideal
+  # pour developper et tester en local, sans rien installer. On la
+  # remplacera par une vraie base (PostgreSQL/Aurora) uniquement au
+  # moment de deployer sur AWS (etape volontairement reportee).
+  datasource:
+    url: jdbc:h2:mem:diagnosticdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    # Cree/rafraichit automatiquement les tables a partir des entites
+    # Java au demarrage. Pratique pour une seule instance locale ; sur
+    # une vraie base partagee on utilisera plutot des migrations
+    # versionnees (Flyway/Liquibase) - hors scope de ce premier recit.
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  # Console web H2, utile pour inspecter les donnees pendant le test
+  # manuel : http://localhost:8082/h2-console (JDBC URL ci-dessus)
+  h2:
+    console:
+      enabled: true
+
+# Coordonnees du User Pool Cognito qui emet les jetons acceptes par cette
+# API -- le meme pool que cornalix-ms-identity (SCRUM-1/SCRUM-2), deja
+# deploye en dev. Surchargeable via variables d'environnement pour un
+# autre environnement (staging/prod).
+cornalix:
+  cognito:
+    region: ${COGNITO_REGION:ca-central-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:ca-central-1_9cLNOsUJ3}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
