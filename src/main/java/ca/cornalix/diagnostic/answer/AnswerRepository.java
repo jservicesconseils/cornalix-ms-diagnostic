@@ -11,4 +11,6 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     Optional<Answer> findByOrganizationIdAndQuestionId(UUID organizationId, UUID questionId);
 
     List<Answer> findByOrganizationId(UUID organizationId);
+
+    boolean existsByQuestionId(UUID questionId);
 }
