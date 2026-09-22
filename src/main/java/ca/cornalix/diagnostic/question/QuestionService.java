@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.question;
 
+import ca.cornalix.diagnostic.answer.AnswerRepository;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import org.springframework.stereotype.Service;
@@ -28,9 +29,11 @@ public class QuestionService {
     private static final Pattern LOCALE_PATTERN = Pattern.compile("^[a-z]{2}$");
 
     private final QuestionRepository repository;
+    private final AnswerRepository answerRepository;
 
-    public QuestionService(QuestionRepository repository) {
+    public QuestionService(QuestionRepository repository, AnswerRepository answerRepository) {
         this.repository = repository;
+        this.answerRepository = answerRepository;
     }
 
     public QuestionResponse create(QuestionRequest request) {
@@ -71,6 +74,9 @@ public class QuestionService {
     public void delete(UUID id) {
         if (!repository.existsById(id)) {
             throw new QuestionNotFoundException(id);
+        }
+        if (answerRepository.existsByQuestionId(id)) {
+            throw new QuestionHasAnswersException(id);
         }
         repository.deleteById(id);
     }

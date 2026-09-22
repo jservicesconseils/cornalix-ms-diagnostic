@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.question;
 
+import ca.cornalix.diagnostic.answer.AnswerRepository;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import org.junit.jupiter.api.Test;
@@ -26,10 +27,13 @@ class QuestionServiceTest {
     @Mock
     private QuestionRepository repository;
 
+    @Mock
+    private AnswerRepository answerRepository;
+
     private QuestionService service;
 
     private QuestionService service() {
-        return new QuestionService(repository);
+        return new QuestionService(repository, answerRepository);
     }
 
     @Test
@@ -102,5 +106,17 @@ class QuestionServiceTest {
         when(repository.existsById(id)).thenReturn(false);
 
         assertThrows(QuestionNotFoundException.class, () -> service.delete(id));
+    }
+
+    @Test
+    void delete_questionDejaRepondue_leveQuestionHasAnswersExceptionEtNeSupprimePas() {
+        service = service();
+        UUID id = UUID.randomUUID();
+        when(repository.existsById(id)).thenReturn(true);
+        when(answerRepository.existsByQuestionId(id)).thenReturn(true);
+
+        assertThrows(QuestionHasAnswersException.class, () -> service.delete(id));
+
+        verify(repository, org.mockito.Mockito.never()).deleteById(any());
     }
 }

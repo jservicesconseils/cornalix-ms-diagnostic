@@ -167,4 +167,13 @@ class QuestionControllerTest {
         mockMvc.perform(delete("/api/v1/diagnostics/questions/{id}", id).with(jwt()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void supprimerUneQuestion_dejaRepondue_renvoie409() throws Exception {
+        UUID id = UUID.randomUUID();
+        org.mockito.Mockito.doThrow(new QuestionHasAnswersException(id)).when(questionService).delete(id);
+
+        mockMvc.perform(delete("/api/v1/diagnostics/questions/{id}", id).with(jwt()))
+                .andExpect(status().isConflict());
+    }
 }
