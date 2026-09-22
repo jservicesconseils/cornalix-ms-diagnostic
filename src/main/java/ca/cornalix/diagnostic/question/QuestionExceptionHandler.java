@@ -28,6 +28,11 @@ public class QuestionExceptionHandler {
         return ResponseEntity.badRequest().body(errorBody(ex.getMessage()));
     }
 
+    @ExceptionHandler(QuestionHasAnswersException.class)
+    public ResponseEntity<Map<String, Object>> handleHasAnswers(QuestionHasAnswersException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
