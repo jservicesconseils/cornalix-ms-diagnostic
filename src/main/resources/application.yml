@@ -11,7 +11,7 @@ spring:
   # remplacera par une vraie base (PostgreSQL/Aurora) uniquement au
   # moment de deployer sur AWS (etape volontairement reportee).
   datasource:
-    url: jdbc:h2:mem:diagnosticdb
+    url: jdbc:h2:mem:diagnosticdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
