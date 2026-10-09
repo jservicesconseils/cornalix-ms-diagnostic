@@ -22,5 +22,4 @@ spring:
     # entites Java au demarrage.
     hibernate:
       ddl-auto: update
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
