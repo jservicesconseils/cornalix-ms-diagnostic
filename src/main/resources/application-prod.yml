@@ -1,0 +1,26 @@
+# Profil "prod" (SCRUM-35) : active via SPRING_PROFILES_ACTIVE=prod sur
+# la tache ECS (SCRUM-36). Remplace uniquement la source de donnees H2
+# de application.yml par la vraie instance RDS Postgres -- tout le reste
+# (securite Cognito, CORS, actuator) reste identique entre les deux
+# profils et n'a pas besoin d'etre redefini ici.
+#
+# DB_HOST/DB_PORT/DB_NAME/DB_USERNAME/DB_PASSWORD sont fournis a la tache
+# ECS a partir de SSM Parameter Store (/cornalix/prod/rds/*, voir
+# infra/prod/platform/database.tf sur cornalix-ms-identity) -- meme
+# instance RDS partagee avec cornalix-ms-identity (une seule base
+# logique "cornalix", voir decision SCRUM-35), jamais codes en dur ici.
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    # Pas de migration versionnee (Flyway/Liquibase) a ce stade -- meme
+    # simplification qu'en local, le schema est cree/rafraichi depuis les
+    # entites Java au demarrage.
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
