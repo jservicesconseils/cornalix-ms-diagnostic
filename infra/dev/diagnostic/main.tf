@@ -12,9 +12,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Ressources partagees (VPC, cluster ECS, ALB, role d'execution, ECR...)
-# creees par infra/prod/platform (SCRUM-34/35/36, repo cornalix-ms-identity)
-# -- ce stack ne fait que les lire, jamais les modifier.
 data "terraform_remote_state" "platform" {
   backend = "s3"
 
@@ -29,9 +26,16 @@ locals {
   platform = data.terraform_remote_state.platform.outputs
 }
 
-############################################
-# Task definition
-############################################
+data "terraform_remote_state" "frontend_dev" {
+  backend = "s3"
+
+  config = {
+    bucket = "cornalix-tfstate-591859078355"
+    key    = "dev/frontend/terraform.tfstate"
+    region = "ca-central-1"
+  }
+}
+
 resource "aws_ecs_task_definition" "diagnostic" {
   family                   = "${var.project}-${var.environment}-${var.service_name}"
   requires_compatibilities = ["FARGATE"]
@@ -53,18 +57,15 @@ resource "aws_ecs_task_definition" "diagnostic" {
 
       environment = [
         { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
-        { name = "CORNALIX_CORS_ALLOWED_ORIGINS", value = "https://cornalix.ca" },
+        { name = "CORNALIX_CORS_ALLOWED_ORIGINS", value = "https://${data.terraform_remote_state.frontend_dev.outputs.cloudfront_domain_name}" },
       ]
 
-      # Identifiants RDS (SCRUM-35, meme instance partagee avec identity)
-      # : references directes aux ARN des parametres SSM plutot qu'une
-      # data source qui lirait les valeurs dans l'etat Terraform.
       secrets = [
-        { name = "DB_HOST", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.rds_ssm_parameter_prefix}/host" },
-        { name = "DB_PORT", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.rds_ssm_parameter_prefix}/port" },
-        { name = "DB_NAME", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.rds_ssm_parameter_prefix}/db_name" },
-        { name = "DB_USERNAME", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.rds_ssm_parameter_prefix}/username" },
-        { name = "DB_PASSWORD", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.rds_ssm_parameter_prefix}/password" },
+        { name = "DB_HOST", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.dev_rds_ssm_parameter_prefix}/host" },
+        { name = "DB_PORT", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.dev_rds_ssm_parameter_prefix}/port" },
+        { name = "DB_NAME", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.dev_rds_ssm_parameter_prefix}/db_name" },
+        { name = "DB_USERNAME", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.dev_rds_ssm_parameter_prefix}/username" },
+        { name = "DB_PASSWORD", valueFrom = "arn:aws:ssm:${var.aws_region}:${local.platform.aws_account_id}:parameter${local.platform.dev_rds_ssm_parameter_prefix}/password" },
       ]
 
       logConfiguration = {
@@ -72,7 +73,7 @@ resource "aws_ecs_task_definition" "diagnostic" {
         options = {
           "awslogs-group"         = local.platform.ecs_log_group_name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = var.service_name
+          "awslogs-stream-prefix" = "${var.environment}-${var.service_name}"
         }
       }
     }
@@ -83,9 +84,6 @@ resource "aws_ecs_task_definition" "diagnostic" {
   }
 }
 
-############################################
-# Target group + regle d'ecoute ALB (routage par nom d'hote, SCRUM-36)
-############################################
 resource "aws_lb_target_group" "diagnostic" {
   name        = "${var.project}-${var.environment}-${var.service_name}"
   port        = var.container_port
@@ -123,9 +121,6 @@ resource "aws_lb_listener_rule" "diagnostic" {
   }
 }
 
-############################################
-# Service ECS
-############################################
 resource "aws_ecs_service" "diagnostic" {
   name            = "${var.project}-${var.environment}-${var.service_name}"
   cluster         = local.platform.ecs_cluster_id
