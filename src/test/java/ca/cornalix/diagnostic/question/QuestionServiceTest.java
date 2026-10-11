@@ -1,6 +1,7 @@
 package ca.cornalix.diagnostic.question;
 
 import ca.cornalix.diagnostic.answer.AnswerRepository;
+import ca.cornalix.diagnostic.common.PageResponse;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,6 +61,23 @@ class QuestionServiceTest {
         QuestionRequest request = new QuestionRequest(1, "1.1", IDENTIFY, IG1, Map.of("french", "texte"));
 
         assertThrows(InvalidTranslationsException.class, () -> service.create(request));
+    }
+
+    @Test
+    void listPaged_delegueAuRepositoryEtConvertitLaPage() {
+        service = service();
+        Question question = new Question(1, "1.1", IDENTIFY, IG1);
+        question.replaceTranslations(Map.of("fr", "texte"));
+        when(repository.findAll(PageRequest.of(1, 5)))
+                .thenReturn(new PageImpl<>(List.of(question), PageRequest.of(1, 5), 11));
+
+        PageResponse<QuestionResponse> response = service.listPaged(1, 5);
+
+        assertEquals(1, response.page());
+        assertEquals(5, response.size());
+        assertEquals(11, response.totalElements());
+        assertEquals(3, response.totalPages());
+        assertEquals(1, response.content().size());
     }
 
     @Test

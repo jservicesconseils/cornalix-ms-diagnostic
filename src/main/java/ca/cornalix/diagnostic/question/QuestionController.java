@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -35,9 +36,17 @@ public class QuestionController {
                 .body(created);
     }
 
+    /**
+     * SCRUM-54 : page/size restent optionnels -- sans eux, on renvoie le
+     * meme tableau brut qu'avant (pas de rupture pour les clients
+     * existants, dont le front qui charge tout le catalogue d'un coup).
+     */
     @GetMapping
-    public List<QuestionResponse> list() {
-        return service.listAll();
+    public Object list(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        if (page == null && size == null) {
+            return service.listAll();
+        }
+        return service.listPaged(page == null ? 0 : page, size == null ? 20 : size);
     }
 
     @GetMapping("/{id}")

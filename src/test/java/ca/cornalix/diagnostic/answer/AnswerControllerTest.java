@@ -2,6 +2,7 @@ package ca.cornalix.diagnostic.answer;
 
 import ca.cornalix.diagnostic.answer.dto.AnswerRequest;
 import ca.cornalix.diagnostic.answer.dto.AnswerResponse;
+import ca.cornalix.diagnostic.common.PageResponse;
 import ca.cornalix.diagnostic.question.QuestionNotFoundException;
 import ca.cornalix.diagnostic.security.SecurityConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -153,6 +154,19 @@ class AnswerControllerTest {
                         .with(jwt().jwt(builder -> builder.claim("tenant_id", orgId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void listerLesReponses_avecPageEtSize_renvoieLaFormePaginee() throws Exception {
+        UUID orgId = UUID.randomUUID();
+        when(answerService.listForOrganizationPaged(orgId, 0, 2))
+                .thenReturn(new PageResponse<>(List.of(sampleResponse(UUID.randomUUID())), 0, 2, 5, 3));
+
+        mockMvc.perform(get("/api/v1/diagnostics/organizations/{orgId}/answers?page=0&size=2", orgId)
+                        .with(jwt().jwt(builder -> builder.claim("tenant_id", orgId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(5));
     }
 
     @Test
