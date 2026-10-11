@@ -1,8 +1,10 @@
 package ca.cornalix.diagnostic.question;
 
 import ca.cornalix.diagnostic.answer.AnswerRepository;
+import ca.cornalix.diagnostic.common.PageResponse;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +53,11 @@ public class QuestionService {
         return repository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<QuestionResponse> listPaged(int page, int size) {
+        return PageResponse.from(repository.findAll(PageRequest.of(page, size)).map(this::toResponse));
     }
 
     @Transactional(readOnly = true)

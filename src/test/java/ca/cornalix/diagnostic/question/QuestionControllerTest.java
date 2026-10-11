@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.question;
 
+import ca.cornalix.diagnostic.common.PageResponse;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import ca.cornalix.diagnostic.security.SecurityConfig;
@@ -106,6 +107,20 @@ class QuestionControllerTest {
     void listerLesQuestions_sansJeton_renvoie401() throws Exception {
         mockMvc.perform(get("/api/v1/diagnostics/questions"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listerLesQuestions_avecPageEtSize_renvoieLaFormePaginee() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(questionService.listPaged(1, 5))
+                .thenReturn(new PageResponse<>(List.of(sampleResponse(id)), 1, 5, 11, 3));
+
+        mockMvc.perform(get("/api/v1/diagnostics/questions?page=1&size=5").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(id.toString()))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.totalElements").value(11))
+                .andExpect(jsonPath("$.totalPages").value(3));
     }
 
     @Test

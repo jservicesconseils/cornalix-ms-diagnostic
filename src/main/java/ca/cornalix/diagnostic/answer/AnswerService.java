@@ -1,9 +1,11 @@
 package ca.cornalix.diagnostic.answer;
 
 import ca.cornalix.diagnostic.answer.dto.AnswerResponse;
+import ca.cornalix.diagnostic.common.PageResponse;
 import ca.cornalix.diagnostic.question.Question;
 import ca.cornalix.diagnostic.question.QuestionNotFoundException;
 import ca.cornalix.diagnostic.question.QuestionRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,12 @@ public class AnswerService {
         return answerRepository.findByOrganizationId(organizationId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AnswerResponse> listForOrganizationPaged(UUID organizationId, int page, int size) {
+        return PageResponse.from(
+                answerRepository.findByOrganizationId(organizationId, PageRequest.of(page, size)).map(this::toResponse));
     }
 
     private AnswerResponse toResponse(Answer answer) {
