@@ -57,7 +57,7 @@ resource "aws_ecs_task_definition" "diagnostic" {
 
       environment = [
         { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
-        { name = "CORNALIX_CORS_ALLOWED_ORIGINS", value = "https://${data.terraform_remote_state.frontend_dev.outputs.cloudfront_domain_name}" },
+        { name = "CORNALIX_CORS_ALLOWED_ORIGINS", value = "https://${data.terraform_remote_state.frontend_dev.outputs.cloudfront_domain_name},https://${data.terraform_remote_state.frontend_dev.outputs.custom_domain_name}" },
       ]
 
       secrets = [
