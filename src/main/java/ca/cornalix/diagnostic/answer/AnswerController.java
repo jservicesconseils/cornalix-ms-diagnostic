@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -46,9 +47,14 @@ public class AnswerController {
         return service.getOne(organizationId, questionId);
     }
 
+    // SCRUM-54 : meme contrat optionnel page/size que QuestionController.
     @GetMapping
-    public List<AnswerResponse> list(@PathVariable UUID organizationId, @AuthenticationPrincipal Jwt jwt) {
+    public Object list(@PathVariable UUID organizationId, @AuthenticationPrincipal Jwt jwt,
+                        @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
         TenantClaims.from(jwt).assertAccessTo(organizationId);
-        return service.listForOrganization(organizationId);
+        if (page == null && size == null) {
+            return service.listForOrganization(organizationId);
+        }
+        return service.listForOrganizationPaged(organizationId, page == null ? 0 : page, size == null ? 20 : size);
     }
 }
