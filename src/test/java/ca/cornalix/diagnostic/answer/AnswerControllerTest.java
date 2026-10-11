@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.answer;
 
+import ca.cornalix.diagnostic.answer.dto.AnswerHistoryResponse;
 import ca.cornalix.diagnostic.answer.dto.AnswerRequest;
 import ca.cornalix.diagnostic.answer.dto.AnswerResponse;
 import ca.cornalix.diagnostic.common.PageResponse;
@@ -52,7 +53,7 @@ class AnswerControllerTest {
     void repondre_avecTenantIdCorrespondant_renvoie200() throws Exception {
         UUID orgId = UUID.randomUUID();
         UUID questionId = UUID.randomUUID();
-        when(answerService.upsert(eq(orgId), eq(questionId), any())).thenReturn(sampleResponse(questionId));
+        when(answerService.upsert(eq(orgId), eq(questionId), any(), any())).thenReturn(sampleResponse(questionId));
 
         mockMvc.perform(put("/api/v1/diagnostics/organizations/{orgId}/answers/{qId}", orgId, questionId)
                         .with(jwt().jwt(builder -> builder.claim("tenant_id", orgId.toString())))
@@ -114,7 +115,7 @@ class AnswerControllerTest {
     void repondre_questionInexistante_renvoie404() throws Exception {
         UUID orgId = UUID.randomUUID();
         UUID questionId = UUID.randomUUID();
-        when(answerService.upsert(eq(orgId), eq(questionId), any())).thenThrow(new QuestionNotFoundException(questionId));
+        when(answerService.upsert(eq(orgId), eq(questionId), any(), any())).thenThrow(new QuestionNotFoundException(questionId));
 
         mockMvc.perform(put("/api/v1/diagnostics/organizations/{orgId}/answers/{qId}", orgId, questionId)
                         .with(jwt().jwt(builder -> builder.claim("tenant_id", orgId.toString())))
@@ -167,6 +168,32 @@ class AnswerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.totalElements").value(5));
+    }
+
+    @Test
+    void historique_avecTenantIdCorrespondant_renvoie200() throws Exception {
+        UUID orgId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        when(answerService.listHistory(orgId, questionId)).thenReturn(List.of(
+                new AnswerHistoryResponse(UUID.randomUUID(), AnswerValue.NO, AnswerValue.YES, "user-1", Instant.now())));
+
+        mockMvc.perform(get("/api/v1/diagnostics/organizations/{orgId}/answers/{qId}/history", orgId, questionId)
+                        .with(jwt().jwt(builder -> builder.claim("tenant_id", orgId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].previousValue").value("NO"))
+                .andExpect(jsonPath("$[0].newValue").value("YES"))
+                .andExpect(jsonPath("$[0].changedBy").value("user-1"));
+    }
+
+    @Test
+    void historique_avecTenantIdDifferent_renvoie403() throws Exception {
+        UUID orgId = UUID.randomUUID();
+        UUID autreTenant = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/diagnostics/organizations/{orgId}/answers/{qId}/history", orgId, questionId)
+                        .with(jwt().jwt(builder -> builder.claim("tenant_id", autreTenant.toString()))))
+                .andExpect(status().isForbidden());
     }
 
     @Test
