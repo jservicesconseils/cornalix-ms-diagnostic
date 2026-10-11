@@ -18,9 +18,9 @@ spring:
 
   jpa:
     # Cree/rafraichit automatiquement les tables a partir des entites
-    # Java au demarrage. Pratique pour une seule instance locale ; sur
-    # une vraie base partagee on utilisera plutot des migrations
-    # versionnees (Flyway/Liquibase) - hors scope de ce premier recit.
+    # Java au demarrage -- H2 repart de zero a chaque lancement de toute
+    # facon, aucune donnee a preserver entre deploiements ici (contraste
+    # avec le profil "prod", voir application-prod.yml/SCRUM-50).
     hibernate:
       ddl-auto: update
     open-in-view: false
@@ -30,6 +30,12 @@ spring:
   h2:
     console:
       enabled: true
+
+  # SCRUM-50 : Flyway n'a de sens que contre la vraie base Postgres
+  # (profil "prod", deja peuplee en dev/prod AWS) -- H2 local repart de
+  # zero a chaque lancement, ddl-auto=update suffit et reste plus simple.
+  flyway:
+    enabled: false
 
 # Coordonnees du User Pool Cognito qui emet les jetons acceptes par cette
 # API -- le meme pool que cornalix-ms-identity (SCRUM-1/SCRUM-2), deja

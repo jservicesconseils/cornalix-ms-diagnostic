@@ -17,9 +17,22 @@ spring:
     password: ${DB_PASSWORD}
 
   jpa:
-    # Pas de migration versionnee (Flyway/Liquibase) a ce stade -- meme
-    # simplification qu'en local, le schema est cree/rafraichi depuis les
-    # entites Java au demarrage.
+    # SCRUM-50 : Hibernate ne modifie plus lui-meme le schema -- il verifie
+    # seulement qu'il correspond aux entites au demarrage (validate echoue
+    # fort et bloque le demarrage plutot que de modifier silencieusement
+    # une base avec des donnees, comme update le faisait). Toute evolution
+    # d'entite passe desormais par une nouvelle migration Flyway versionnee.
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
+
+  # SCRUM-50 : la base dev/prod existe deja (questions, answers,
+  # answer_history deja peuples) -- baseline-version=1 (= V1__baseline.sql,
+  # qui recree ce meme schema) fait que Flyway marque la base existante
+  # comme deja a la version 1 au premier demarrage SANS rejouer ce script,
+  # au lieu d'echouer sur des "relation already exists". Seules les
+  # migrations futures (V2+) s'executeront reellement contre cette base.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
