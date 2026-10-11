@@ -33,8 +33,11 @@ class AnswerServiceTest {
     @Mock
     private QuestionRepository questionRepository;
 
+    @Mock
+    private AnswerHistoryRepository answerHistoryRepository;
+
     private AnswerService service() {
-        return new AnswerService(answerRepository, questionRepository);
+        return new AnswerService(answerRepository, questionRepository, answerHistoryRepository);
     }
 
     private static Question aQuestion() {
@@ -54,7 +57,7 @@ class AnswerServiceTest {
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(answerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        AnswerResponse response = service.upsert(orgId, questionId, AnswerValue.YES);
+        AnswerResponse response = service.upsert(orgId, questionId, AnswerValue.YES, "user-1");
 
         assertEquals(AnswerValue.YES, response.value());
     }
@@ -68,7 +71,7 @@ class AnswerServiceTest {
         when(answerRepository.findByOrganizationIdAndQuestionId(orgId, questionId)).thenReturn(Optional.empty());
         when(questionRepository.findById(questionId)).thenReturn(Optional.empty());
 
-        assertThrows(QuestionNotFoundException.class, () -> service.upsert(orgId, questionId, AnswerValue.YES));
+        assertThrows(QuestionNotFoundException.class, () -> service.upsert(orgId, questionId, AnswerValue.YES, "user-1"));
     }
 
     @Test
@@ -82,9 +85,52 @@ class AnswerServiceTest {
         when(answerRepository.findByOrganizationIdAndQuestionId(orgId, questionId)).thenReturn(Optional.of(existing));
         when(answerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        AnswerResponse response = service.upsert(orgId, questionId, AnswerValue.YES);
+        AnswerResponse response = service.upsert(orgId, questionId, AnswerValue.YES, "user-1");
 
         assertEquals(AnswerValue.YES, response.value());
+    }
+
+    // SCRUM-51 : previousValue = NO (valeur ecrasee), newValue = YES,
+    // changedBy = le sub passe en parametre.
+    @Test
+    void upsert_reponseDejaExistante_journaliseLAncienneValeurDansLHistorique() {
+        AnswerService service = service();
+        UUID orgId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        Question question = aQuestion();
+        Answer existing = new Answer(orgId, question, AnswerValue.NO);
+
+        when(answerRepository.findByOrganizationIdAndQuestionId(orgId, questionId)).thenReturn(Optional.of(existing));
+        when(answerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        org.mockito.ArgumentCaptor<AnswerHistory> captor = org.mockito.ArgumentCaptor.forClass(AnswerHistory.class);
+        when(answerHistoryRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.upsert(orgId, questionId, AnswerValue.YES, "user-42");
+
+        AnswerHistory saved = captor.getValue();
+        assertEquals(AnswerValue.NO, saved.getPreviousValue());
+        assertEquals(AnswerValue.YES, saved.getNewValue());
+        assertEquals("user-42", saved.getChangedBy());
+    }
+
+    // SCRUM-51 : premiere reponse -- previousValue doit rester nul, rien
+    // a journaliser "avant".
+    @Test
+    void upsert_premiereReponse_journalisePreviousValueNul() {
+        AnswerService service = service();
+        UUID orgId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        Question question = aQuestion();
+
+        when(answerRepository.findByOrganizationIdAndQuestionId(orgId, questionId)).thenReturn(Optional.empty());
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(answerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        org.mockito.ArgumentCaptor<AnswerHistory> captor = org.mockito.ArgumentCaptor.forClass(AnswerHistory.class);
+        when(answerHistoryRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.upsert(orgId, questionId, AnswerValue.YES, "user-1");
+
+        assertEquals(null, captor.getValue().getPreviousValue());
     }
 
     @Test
@@ -103,6 +149,24 @@ class AnswerServiceTest {
         assertEquals(5, response.totalElements());
         assertEquals(3, response.totalPages());
         assertEquals(1, response.content().size());
+    }
+
+    @Test
+    void listHistory_delegueAuRepositoryEtConvertitEnDto() {
+        AnswerService service = service();
+        UUID orgId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        AnswerHistory entry = new AnswerHistory(orgId, questionId, AnswerValue.NO, AnswerValue.YES, "user-1");
+
+        when(answerHistoryRepository.findByOrganizationIdAndQuestionIdOrderByChangedAtDesc(orgId, questionId))
+                .thenReturn(List.of(entry));
+
+        var history = service.listHistory(orgId, questionId);
+
+        assertEquals(1, history.size());
+        assertEquals(AnswerValue.NO, history.get(0).previousValue());
+        assertEquals(AnswerValue.YES, history.get(0).newValue());
+        assertEquals("user-1", history.get(0).changedBy());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.answer;
 
+import ca.cornalix.diagnostic.answer.dto.AnswerHistoryResponse;
 import ca.cornalix.diagnostic.answer.dto.AnswerRequest;
 import ca.cornalix.diagnostic.answer.dto.AnswerResponse;
 import ca.cornalix.diagnostic.security.TenantClaims;
@@ -37,7 +38,17 @@ public class AnswerController {
     public AnswerResponse upsert(@PathVariable UUID organizationId, @PathVariable UUID questionId,
                                   @Valid @RequestBody AnswerRequest request, @AuthenticationPrincipal Jwt jwt) {
         TenantClaims.from(jwt).assertAccessTo(organizationId);
-        return service.upsert(organizationId, questionId, request.value());
+        return service.upsert(organizationId, questionId, request.value(), jwt.getSubject());
+    }
+
+    // SCRUM-51 : la plus recente en premier -- consultable par quiconque a
+    // deja acces a la reponse courante (meme verification tenant_id/
+    // tenant_scope), pas de restriction supplementaire par role.
+    @GetMapping("/{questionId}/history")
+    public List<AnswerHistoryResponse> history(@PathVariable UUID organizationId, @PathVariable UUID questionId,
+                                                @AuthenticationPrincipal Jwt jwt) {
+        TenantClaims.from(jwt).assertAccessTo(organizationId);
+        return service.listHistory(organizationId, questionId);
     }
 
     @GetMapping("/{questionId}")
