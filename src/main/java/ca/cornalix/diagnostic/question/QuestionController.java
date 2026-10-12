@@ -1,5 +1,6 @@
 package ca.cornalix.diagnostic.question;
 
+import ca.cornalix.diagnostic.question.dto.QuestionImportResult;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import jakarta.validation.Valid;
@@ -13,7 +14,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
@@ -63,5 +67,19 @@ public class QuestionController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Ecran d'administration des questions : import en masse par CSV
+    // (colonnes cisControl, cisSafeguard, nistFunction, implementationGroup,
+    // text_fr, text_en). Pas de restriction de role pour l'instant --
+    // meme garantie que les autres routes de ce controleur (tout jeton
+    // valide suffit), a restreindre plus tard au role OWNER.
+    @PostMapping("/import")
+    public QuestionImportResult importCsv(@RequestParam("file") MultipartFile file) {
+        try {
+            return service.importFromCsv(file.getInputStream());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Impossible de lire le fichier envoye", e);
+        }
     }
 }

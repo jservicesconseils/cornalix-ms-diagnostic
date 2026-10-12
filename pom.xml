@@ -73,6 +73,15 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
+    <!-- Import en masse du catalogue de questions (ecran d'administration) :
+         parsing CSV correct (champs entre guillemets, virgules dans le
+         texte d'une question), plus fiable qu'un split(",") maison. -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+      <version>1.11.0</version>
+    </dependency>
+
     <!-- Securite : valide les jetons JWT emis par Amazon Cognito (meme User
          Pool que cornalix-ms-identity, une seule source d'identite pour
          toute la plateforme) -->
