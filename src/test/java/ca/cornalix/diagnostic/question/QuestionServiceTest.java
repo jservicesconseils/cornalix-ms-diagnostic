@@ -2,6 +2,7 @@ package ca.cornalix.diagnostic.question;
 
 import ca.cornalix.diagnostic.answer.AnswerRepository;
 import ca.cornalix.diagnostic.common.PageResponse;
+import ca.cornalix.diagnostic.question.dto.QuestionImportResult;
 import ca.cornalix.diagnostic.question.dto.QuestionRequest;
 import ca.cornalix.diagnostic.question.dto.QuestionResponse;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +25,7 @@ import static ca.cornalix.diagnostic.question.ImplementationGroup.IG1;
 import static ca.cornalix.diagnostic.question.NistFunction.IDENTIFY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -105,6 +110,83 @@ class QuestionServiceTest {
 
         assertEquals(16, response.cisControl());
         assertEquals(Map.of("fr", "nouveau texte"), response.translations());
+    }
+
+    @Test
+    void importFromCsv_nouvellesQuestions_creeToutesEtRenvoieLeCompte() {
+        service = service();
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // findByCisControlAndCisSafeguard non stubbe -- Mockito renvoie
+        // Optional.empty() par defaut, donc chaque ligne est traitee
+        // comme une nouvelle question.
+
+        InputStream csv = csv(
+                "cisControl,cisSafeguard,nistFunction,implementationGroup,text_fr,text_en",
+                "1,1.1,IDENTIFY,IG1,Avez-vous un inventaire ?,Do you have an inventory?",
+                "4,4.1,PROTECT,IG1,Configurations securisees appliquees ?,"
+        );
+
+        QuestionImportResult result = service.importFromCsv(csv);
+
+        assertEquals(2, result.created());
+        assertEquals(0, result.updated());
+        assertEquals(List.of(), result.errors());
+    }
+
+    @Test
+    void importFromCsv_questionExistante_metAJourEnPlaceSansRecreer() {
+        service = service();
+        Question existing = new Question(1, "1.1", IDENTIFY, IG1);
+        existing.replaceTranslations(Map.of("fr", "ancien texte"));
+        when(repository.findByCisControlAndCisSafeguard(1, "1.1")).thenReturn(Optional.of(existing));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InputStream csv = csv(
+                "cisControl,cisSafeguard,nistFunction,implementationGroup,text_fr,text_en",
+                "1,1.1,IDENTIFY,IG1,nouveau texte,"
+        );
+
+        QuestionImportResult result = service.importFromCsv(csv);
+
+        assertEquals(0, result.created());
+        assertEquals(1, result.updated());
+        verify(repository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.argThat(q -> q != existing));
+    }
+
+    @Test
+    void importFromCsv_ligneInvalide_collecteLErreurEtContinueAvecLesSuivantes() {
+        service = service();
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InputStream csv = csv(
+                "cisControl,cisSafeguard,nistFunction,implementationGroup,text_fr,text_en",
+                "1,1.1,PAS_UNE_FONCTION,IG1,texte,",
+                "2,2.1,IDENTIFY,IG1,texte valide,"
+        );
+
+        QuestionImportResult result = service.importFromCsv(csv);
+
+        assertEquals(1, result.created());
+        assertEquals(1, result.errors().size());
+        assertEquals(2, result.errors().get(0).rowNumber());
+        assertTrue(result.errors().get(0).message().contains("nistFunction"));
+    }
+
+    @Test
+    void importFromCsv_colonneManquante_leveInvalidCsvException() {
+        service = service();
+
+        InputStream csv = csv(
+                "cisControl,cisSafeguard,nistFunction,text_fr",
+                "1,1.1,IDENTIFY,texte"
+        );
+
+        assertThrows(InvalidCsvException.class, () -> service.importFromCsv(csv));
+    }
+
+    private static InputStream csv(String... lines) {
+        String content = String.join("\n", lines);
+        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 
     @Test

@@ -33,6 +33,11 @@ public class QuestionExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidCsvException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCsv(InvalidCsvException ex) {
+        return ResponseEntity.badRequest().body(errorBody(ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

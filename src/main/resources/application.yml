@@ -37,6 +37,15 @@ spring:
   flyway:
     enabled: false
 
+  # Import CSV du catalogue de questions (ecran d'administration) -- le
+  # defaut Spring Boot (1 Mo) suffirait pour un catalogue de quelques
+  # centaines de lignes, mais une marge confortable evite d'avoir a y
+  # revenir si le fichier grossit.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 # Coordonnees du User Pool Cognito qui emet les jetons acceptes par cette
 # API -- le meme pool que cornalix-ms-identity (SCRUM-1/SCRUM-2), deja
 # deploye en dev. Surchargeable via variables d'environnement pour un
